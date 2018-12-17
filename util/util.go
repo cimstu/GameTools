@@ -168,3 +168,16 @@ func PostFile(filename string, target_url string) (*http.Response, error) {
 
 	return http.DefaultClient.Do(req)
 }
+
+func CheckError(err error, pre string, pn bool) bool{
+	if err != nil {
+		MessageBox("Error", pre + ":" + err.Error(), MB_OK)
+		if pn{
+			panic("")
+		}
+
+		return true
+	}
+
+	return false
+}

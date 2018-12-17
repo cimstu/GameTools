@@ -15,14 +15,30 @@ import (
 	"os/exec"
 	"encoding/json"
 	"io/ioutil"
+	"GameTools/util"
+	"github.com/syndtr/goleveldb/leveldb/errors"
 )
 
-var LOG* log.Logger
-func init() {
-	logPath, _ := filepath.Abs("./saveMonitor.log")
-	logFile, _ := os.OpenFile(logPath , os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-	LOG = log.New(logFile, "", log.Lshortfile|log.LstdFlags )
-}
+var (
+	LOG* log.Logger
+
+	stdinReader = bufio.NewReader(os.Stdin)
+
+	settings = Settings{}
+
+	settingFile = "game_saver.settings"
+	diabloPath = ""
+	diabloPathSave = ""
+	diabloPathExe = ""
+	saveLocal = ""
+	saveDown = ""
+	saveUp = ""
+
+	serverUrl = ""
+	uploadServer = ""
+	getlistServer = ""
+	downloadServer = ""
+)
 
 func compress(file *os.File, prefix string, zw *zip.Writer) error {
 	info, err := file.Stat()
@@ -182,24 +198,6 @@ func postFile(filename string, target_url string) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
-var
-(
-	diabloPath = "F:\\迅雷下载\\Diablo.II.v1.13c.CHS.CHT.Green.Edition-ALI213\\Diablo II\\"
-	//diabloPath = "E:\\Soft\\ForMine\\diablo1.13C\\"
-	diabloPathSave = filepath.Join(diabloPath, "Save")
-	diabloPathExe = filepath.Join(diabloPath, "d2loader.exe")
-	saveLocal = filepath.Join(diabloPath, "Save-Local")
-	saveDown = filepath.Join(diabloPath, "Save-Down")
-	saveUp = filepath.Join(diabloPath, "Save-Upload")
-
-	serverUrl = "http://129.204.48.44:80/"
-	uploadServer = serverUrl+"upload"
-	getlistServer = serverUrl+"getlist"
-	downloadServer = serverUrl+"staticfile/"
-
-	stdinReader = bufio.NewReader(os.Stdin)
-)
-
 func saveInLocal() {
 	err := os.Mkdir(saveLocal, 0777)
 	dest := fmt.Sprintf("%s/%s.local", saveLocal, time.Now().Format("2006-01-02-15.04.05"))
@@ -223,12 +221,8 @@ func downloadProfile()  {
 	defer resp.Body.Close()
 
 	fileContent, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+	if err != nil || len(fileContent) <= 0 {
 		errorQuit("Download file list failed:" + err.Error())
-	}
-
-	if len(fileContent) <= 0 {
-		return
 	}
 
 	var fileList []string
@@ -292,6 +286,44 @@ func errorQuit(err string) {
 	txt, _ := stdinReader.ReadString('\n')
 	txt = txt
 	panic("")
+}
+
+type Settings struct {
+	ServerUrl string
+	GamePath string
+}
+
+func init() {
+	logPath, _ := filepath.Abs("./saveMonitor.log")
+	logFile, _ := os.OpenFile(logPath , os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	LOG = log.New(logFile, "", log.Lshortfile|log.LstdFlags )
+
+	c, err := ioutil.ReadFile("./"+settingFile)
+	util.CheckError(err, "尚未配置服务地址", true)
+
+	err = json.Unmarshal(c, &settings)
+	util.CheckError(err, "读取配置信息失败", true)
+
+	if settings.ServerUrl == "" {
+		util.CheckError(errors.New(""), "读取配置信息失败", true)
+	}
+
+	diabloPath = settings.GamePath
+	fi, err := os.Stat(diabloPath)
+	if err != nil || fi == nil {
+		util.CheckError(errors.New(""), "游戏路径不存在", true)
+	}
+
+	diabloPathSave = filepath.Join(diabloPath, "Save")
+	diabloPathExe = filepath.Join(diabloPath, "d2loader.exe")
+	saveLocal = filepath.Join(diabloPath, "Save-Local")
+	saveDown = filepath.Join(diabloPath, "Save-Down")
+	saveUp = filepath.Join(diabloPath, "Save-Upload")
+
+	serverUrl = settings.ServerUrl
+	uploadServer = serverUrl+"upload"
+	getlistServer = serverUrl+"getlist"
+	downloadServer = serverUrl+"staticfile/"
 }
 
 func main(){

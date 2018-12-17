@@ -14,19 +14,6 @@ import (
 	"time"
 )
 
-func CheckError(err error, pre string, pn bool) bool{
-	if err != nil {
-		util.MessageBox("Error", pre + ":" + err.Error(), util.MB_OK)
-		if pn{
-			panic("")
-		}
-
-		return true
-	}
-
-	return false
-}
-
 func startServer() string {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
